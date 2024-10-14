@@ -1,0 +1,182 @@
+<script src=lib1.js></script>
+
+<body bgcolor=black text=white link=white alink=white vlink=white>
+<center>
+<canvas id='canvas1' width=400 height=400></canvas>
+</center>
+</body>
+
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   varying   vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.);
+      vPos = aPos;
+   }
+</script>
+
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+   uniform float uTime;   // TIME, IN SECONDS
+
+   varying vec3 vPos;     // -1 < vPos.x < +1
+                          // -1 < vPos.y < +1
+                          //      vPos.z == 0
+   
+   // A FRAGMENT SHADER MUST DEFINE main().
+
+   void main() {
+      // Bouncing effect
+      float bounce = 0.15 + abs(sin(uTime * 3.0)) * 0.25;
+      vec3 pos = vPos;
+      pos.y += bounce;
+   
+      // Doughnut parameters
+      float outerRadius = 0.4;
+      float innerRadius = 0.2;
+      vec2 center = vec2(0.0, 0.0);
+   
+      float rateY = uTime * 0.5;  // Y-axis expansion rate
+      float rateZ = uTime * 0.3;  // Z-axis expansion rate
+   
+      // Y-axis expansion
+      mat3 jumpY = mat3(
+         cos(bounce * 1.5), 0.0, sin(bounce * 1.5),
+         0.0, 1.0, 0.0,
+         0., 0.0, 0.
+      );
+
+      pos = jumpY * pos;
+   
+      // Z-axis jump
+      mat2 jumpZ = mat2(cos(rateZ), -sin(rateZ), sin(rateZ), cos(rateZ));
+      vec2 jumpedPos = jumpZ * pos.xy;
+   
+      // Calculate distance from the expansion to center
+      float dist = length(jumpedPos - center);
+   
+      // Check if the pixel is within the doughnut shape
+      if (dist > innerRadius && dist < outerRadius) {
+         // Normal for lighting
+         vec2 normal = normalize(jumpedPos - center);
+         
+         // Directional lighting
+         vec3 lightDir = normalize(vec3(0.8, -0.8, 1.0));
+         float diffuse = max(0.0, dot(vec3(normal, 0.0), lightDir));
+   
+         // Highlights
+         vec3 viewDir = vec3(0.0, 0.0, 1.0);
+         vec3 reflectDir = reflect(-lightDir, vec3(normal, 0.0));
+         float specular = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+   
+         vec3 baseColor = vec3(0.8, 0.4, 0.2); // Doughnut brown
+   
+         // Lighting
+         vec3 color = baseColor * (0.2 + 0.6 * diffuse) + specular * 0.3;
+   
+         // Glaze
+         float glaze = smoothstep(innerRadius + 0.01, innerRadius + 0.1, dist);
+         glaze *= smoothstep(outerRadius, outerRadius - 0.03, dist);
+         color = mix(color, vec3(1.0, 1.0, 0.85), glaze * 0.3);
+   
+         // Noise
+         float noise = noise(10. * vec3(float(jumpedPos)) + 100. + .1 * uTime);
+         color *= 1.0 + 0.05 * noise;
+   
+         gl_FragColor = vec4(sqrt(color), 1.0);
+
+      } else {
+
+         vec3 rgb = mix(vec3(.0, .01, .01), vec3(.0), .5 + .5 * vPos.y);
+         gl_FragColor = vec4(sqrt(rgb), 1.0);
+      }
+   }
+   
+   
+</script>
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+BOUNCING BAGEL
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=#b0b0b0>
+The bagel is
+<br>
+happy and bouncy.
+<br>
+Inspired by
+<br>
+my breakfast.
+</script>
+
+
+<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
+   
+<script>
+
+// CREATE THE HTML DOCUMENT
+
+let vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<center><font size=6 color=#b0b0b0>' + my_title.innerHTML + '</center>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+// SET UP THE EDITABLE TEXT AREA ON THE LEFT SIDE.
+
+let text = fs.split('\n'), cols = 0;
+for (let i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+
+// REPARSE THE SHADER PROGRAM AFTER EVERY KEYSTROKE.
+
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+// SET THE CURRENT TIME IN SECONDS BEFORE RENDERING EACH FRAME.
+
+let startTime = Date.now();
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   setUniform('1f', 'uTime', time);
+}
+
+// START EVERYTHING.
+
+gl_start(canvas1, vs, fs);
+</script>
+
