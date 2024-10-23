@@ -4,7 +4,7 @@
 const NQ = 6;
 </script>
 
-<script src=fragmentShaderCopy.js></script>
+<script src=fragmentShader.js></script>
 <script src=matrix.js></script>
 <script src=quadric.js></script>
 
@@ -110,7 +110,7 @@ setTimeout(() => {
       gl.uniform1f(uTime, time);
       gl.uniform3fv(uCursor, cursor);
       gl.uniform3fv(uL, [-.57,-.57,-.57, .57,.57,.57]);
-      gl.uniform1f(uFL, 3);
+      gl.uniform1f(uFL, 10);
 
       // DEFINE ANIMATION MATRICES
 

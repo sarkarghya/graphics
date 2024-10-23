@@ -100,25 +100,21 @@ let fragmentShader = `
       vec3 material, highlight;
       float power;
 
-      material = vec3(.5,.17,0.);    // GOLD
-      highlight = 1.2 * material;
-      power = 8.;
-
-      // if (uCursor.x < -.3) {
-      //    material = vec3(.5,.17,0.);    // GOLD
-      //    highlight = 1.2 * material;
-      //    power = 8.;
-      // }
-      // else if (uCursor.x > .3) {
-      //    material = vec3(.4,.05,.0);    // COPPER
-      //    highlight = 1.2 * material;
-      //    power = 6.;
-      // }
-      // else {
-      //    material = vec3(1.,0.,0.);    // RED PLASTIC
-      //    highlight = vec3(1.);
-      //    power = 20.;
-      // }
+      if (uCursor.x < -.3) {
+	 material = vec3(.5,.17,0.);    // GOLD
+         highlight = 1.2 * material;
+	 power = 8.;
+      }
+      else if (uCursor.x > .3) {
+	 material = vec3(.4,.05,.0);    // COPPER
+         highlight = 1.2 * material;
+	 power = 6.;
+      }
+      else {
+         material = vec3(1.,0.,0.);    // RED PLASTIC
+	 highlight = vec3(1.);
+         power = 20.;
+      }
 
       float tMin = 1000.;
       for (int i = 0 ; i < ` + NSPHERES + ` ; i++) {
@@ -126,33 +122,27 @@ let fragmentShader = `
          float r = uSpheres[i].w;
          float t = raySphere(V, W, C, r);
          if (t > 0. && t < tMin) {
-            tMin = t;
+	    tMin = t;
             vec3 P = V + t * W;
-            vec3 N = normalize(P - C);
-            color = .2 * material;
+	    vec3 N = normalize(P - C);
+	    color = .2 * material;
 
-            vec3 d = material * max(0., dot(N,L));
-            vec3 E = vec3(0.,0.,1.);
-            vec3 R = W - 2. * N * dot(N, W);
-            vec3 s = highlight * pow(max(0., dot(R, L)), power);
-            color += d + s;
+	    bool inShadow = false;
+	    for (int j = 0 ; j < ` + NSPHERES + ` ; j++)
+	       if (j != i) {
+                  vec3  C = uSpheres[j].xyz;
+                  float r = uSpheres[j].w;
+                  if (raySphere(P, L, C, r) > 0.)
+	             inShadow = true;
+	       }
 
-            //  bool inShadow = false;
-            //  for (int j = 0 ; j < ` + NSPHERES + ` ; j++)
-            //     if (j != i) {
-            //             vec3  C = uSpheres[j].xyz;
-            //             float r = uSpheres[j].w;
-            //             if (raySphere(P, L, C, r) > 0.)
-            //           inShadow = true;
-            //     }
-
-            //  if (! inShadow) {
-            //     vec3 d = material * max(0., dot(N,L));
-            //     vec3 E = vec3(0.,0.,1.);
-            //     vec3 R = W - 2. * N * dot(N, W);
-            //     vec3 s = highlight * pow(max(0., dot(R, L)), power);
-            //          color += d + s;
-            //       }
+	    if (! inShadow) {
+	       vec3 d = material * max(0., dot(N,L));
+	       vec3 E = vec3(0.,0.,1.);
+	       vec3 R = W - 2. * N * dot(N, W);
+	       vec3 s = highlight * pow(max(0., dot(R, L)), power);
+               color += d + s;
+            }
          }
       }
 

@@ -1,0 +1,401 @@
+<body bgcolor=black>
+<center><canvas id='canvas1' width=800 height=800></canvas>
+
+<script>
+
+// A TINY MATRIX LIBRARy
+
+let mInverse = m => {
+   let dst = [], det = 0, cofactor = (c, r) => {
+      let s = (i, j) => m[c+i & 3 | (r+j & 3) << 2];
+      return (c+r & 1 ? -1 : 1) * ( (s(1,1) * (s(2,2) * s(3,3) - s(3,2) * s(2,3)))
+                                  - (s(2,1) * (s(1,2) * s(3,3) - s(3,2) * s(1,3)))
+                                  + (s(3,1) * (s(1,2) * s(2,3) - s(2,2) * s(1,3))) );
+   }
+   for (let n = 0 ; n < 16 ; n++) dst.push(cofactor(n >> 2, n & 3));
+   for (let n = 0 ; n <  4 ; n++) det += m[n] * dst[n << 2]; 
+   for (let n = 0 ; n < 16 ; n++) dst[n] /= det;
+   return dst;
+}
+let matrixMultiply = (a, b) => {
+   let dst = [];
+   for (let n = 0 ; n < 16 ; n++)
+      dst.push(a[n&3]*b[n&12] + a[n&3|4]*b[n&12|1] + a[n&3|8]*b[n&12|2] + a[n&3|12]*b[n&12|3]);
+   return dst;
+}
+let C = t => Math.cos(t);
+let S = t => Math.sin(t);
+let mIdentity = () => [ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 ];
+let mPerspective = (fl, m) => matrixMultiply(m, [1,0,0,0, 0,1,0,0, 0,0,1,-1/fl, 0,0,0,1]);
+let mRotateX = (t, m) => matrixMultiply(m, [1,0,0,0, 0,C(t),S(t),0, 0,-S(t),C(t),0, 0,0,0,1]);
+let mRotateY = (t, m) => matrixMultiply(m, [C(t),0,-S(t),0, 0,1,0,0, S(t),0,C(t),0, 0,0,0,1]);
+let mRotateZ = (t, m) => matrixMultiply(m, [C(t),S(t),0,0, -S(t),C(t),0,0, 0,0,1,0, 0,0,0,1]);
+let mScale = (x,y,z, m) => matrixMultiply(m, [x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1]);
+let mTranslate = (x,y,z, m) => matrixMultiply(m, [1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]);
+
+// INITIALIZE GL
+
+let start_gl = (canvas, meshData, vertexSize, vertexShader, fragmentShader) => {
+   let gl = canvas.getContext("webgl");
+   let program = gl.createProgram();
+   gl.program = program;
+   let addshader = (type, src) => {
+      let shader = gl.createShader(type);
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      if (! gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+         throw "Cannot compile shader:\n\n" + gl.getShaderInfoLog(shader);
+      gl.attachShader(program, shader);
+   };
+   addshader(gl.VERTEX_SHADER  , vertexShader  );
+   addshader(gl.FRAGMENT_SHADER, fragmentShader);
+   gl.linkProgram(program);
+   if (! gl.getProgramParameter(program, gl.LINK_STATUS))
+      throw "Could not link the shader program!";
+   gl.useProgram(program);
+   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+   gl.enable(gl.DEPTH_TEST);
+   gl.depthFunc(gl.LEQUAL);
+   let vertexAttribute = (name, size, position) => {
+      let attr = gl.getAttribLocation(program, name);
+      gl.enableVertexAttribArray(attr);
+      gl.vertexAttribPointer(attr, size, gl.FLOAT, false, vertexSize * 4, position * 4);
+   }
+   vertexAttribute('aPos', 3, 0);
+   vertexAttribute('aNor', 3, 3);
+   return gl;
+}
+
+//CREATE A TRIANGLE_STRIP MESH
+
+let createMesh = (nu, nv, p) => {
+   let mesh = [];
+   for (let j = nv-1 ; j >= 0 ; j--) {
+      for (let i = 0 ; i <= nu ; i++)
+         mesh.push(p(i/nu,(j+1)/nv), p(i/nu,j/nv));
+      mesh.push(p(1,j/nv), p(0,j/nv));
+   }
+   return mesh.flat();
+}
+
+// DEFINE VARIOUS KINDS OF TRIANGLE_STRIP MESHES
+
+let sphere = (nu, nv) => createMesh(nu, nv, (u,v) => {
+   let theta = 2 * Math.PI * u;
+   let phi = Math.PI * (v - .5);
+   let x = C(phi) * C(theta),
+       y = C(phi) * S(theta),
+       z = S(phi);
+   return [ x,y,z, x,y,z ];
+});
+
+let tube = (nu, nv) => createMesh(nu, nv, (u,v) => {
+   let x = C(2 * Math.PI * u),
+       y = S(2 * Math.PI * u),
+       z = 2 * v - 1;
+   return [ x,y,z, x,y,0 ];
+});
+
+let disk = (nu, nv) => createMesh(nu, nv, (u,v) => {
+   let x = v * C(2 * Math.PI * u),
+       y = v * S(2 * Math.PI * u);
+   return [ x,y,0, 0,0,1 ];
+});
+
+let cylinder = (nu, nv) => createMesh(nu, nv, (u,v) => {
+   let x = C(2 * Math.PI * u),
+       y = S(2 * Math.PI * u);
+   switch (5 * v >> 0) {
+   case 0: return [ 0,0,-1, 0,0,-1 ];
+   case 1: return [ x,y,-1, 0,0,-1 ];
+   case 2: return [ x,y,-1, x,y, 0 ];
+   case 3: return [ x,y, 1, x,y, 0 ];
+   case 4: return [ x,y, 1, 0,0, 1 ];
+   case 5: return [ 0,0, 1, 0,0, 1 ];
+   }
+});
+
+let torus = (nu, nv) => createMesh(nu, nv, (u,v) => {
+   let ct = C(2 * Math.PI * u);
+   let st = S(2 * Math.PI * u);
+   let cp = C(2 * Math.PI * v);
+   let sp = S(2 * Math.PI * v);
+   let x = (1 + .5 * cp) * ct,
+       y = (1 + .5 * cp) * st,
+       z =      .5 * sp;
+   return [ x,y,z, cp*ct,cp*st,sp ];
+});
+
+// SHORTCUT TO MAKE IT EASIER TO DEFINE CUBE AND OCTAHEDRON
+
+let strToTris = str => {
+   let tris = [];
+   for (let n = 0 ; n < str.length ; n++)
+      switch (str.charAt(n)) {
+      case 'N': tris.push(-1    ); break;
+      case 'n': tris.push(-0.577); break;
+      case '0': tris.push( 0    ); break;
+      case 'p': tris.push( 0.577); break;
+      case 'P': tris.push( 1    ); break;
+      }
+   return tris;
+}
+
+// DEFINE SOME MESHES MADE FROM TRIANGLES
+
+let cube = strToTris(`PNP00P PPP00P NPP00P  NPP00P NNP00P PNP00P
+                      NPN00N PPN00N PNN00N  PNN00N NNN00N NPN00N
+                      PPNP00 PPPP00 PNPP00  PNPP00 PNNP00 PPNP00
+                      NNPN00 NPPN00 NPNN00  NPNN00 NNNN00 NNPN00
+                      NPP0P0 PPP0P0 PPN0P0  PPN0P0 NPN0P0 NPP0P0
+                      PNN0N0 PNP0N0 NNP0N0  NNP0N0 NNN0N0 PNN0N0`);
+
+let octahedron = strToTris(`00Nnnn 0N0nnn N00nnn  P00pnn 0N0pnn 00Npnn
+                            N00npn 0P0npn 00Nnpn  00Nppn 0P0ppn P00ppn
+                            00Pnnp 0N0nnp N00nnp  00Ppnp 0N0pnp P00pnp
+                            N00npp 0P0npp 00Pnpp  P00ppp 0P0ppp 00Pppp`);
+
+let diamond = strToTris(
+    // Top section
+    `00P000 P00000 0P0000  // top point to middle
+     00P000 0N0000 P00000
+     00P000 N00000 0N0000
+     00P000 0P0000 N00000
+
+     // Middle band (girdle)
+     P00000 0P0000 Pp0000  // upper girdle faces
+     0N0000 P00000 pP0000
+     N00000 0N0000 Np0000
+     0P0000 N00000 pN0000
+
+     Pp0000 0p0000 pP0000  // connecting faces
+     pP0000 0p0000 Np0000
+     Np0000 0p0000 pN0000
+     pN0000 0p0000 Pp0000
+
+     // Bottom section
+     00N000 Pp0000 pP0000  // bottom point to middle
+     00N000 pP0000 Np0000
+     00N000 Np0000 pN0000
+     00N000 pN0000 Pp0000`
+);
+
+let snowflake = (nu, nv) => createMesh(nu, nv, (u,v) => {
+    // Base angle and radius
+    let angle = 2 * Math.PI * u;
+    let r = v;
+    
+    // Create main six-fold symmetry
+    let modAngle = angle * 6;
+    
+    // Add multiple layers of detail
+    let mainSpikes = Math.sin(modAngle);
+    let secondarySpikes = 0.3 * Math.sin(modAngle * 3);
+    let tertiarySpikes = 0.15 * Math.sin(modAngle * 12);
+    
+    // Create branching effect that increases toward tips
+    let branchDetail = 0.1 * r * Math.sin(modAngle * 18);
+    
+    // Add crystalline pattern that varies with radius
+    let crystalPattern = 0.05 * Math.sin(modAngle * 24) * (r * r);
+    
+    // Combine all features with radius-dependent scaling
+    let radius = r * (
+        0.6 + // Base size
+        0.3 * mainSpikes * (1 - r * 0.3) + // Main spikes that taper
+        secondarySpikes * r + // Secondary features that grow at tips
+        tertiarySpikes * (r * r) + // Fine detail that increases at edges
+        branchDetail + // Branching texture
+        crystalPattern // Crystalline texture
+    );
+    
+    // Convert to Cartesian coordinates
+    let x = radius * Math.cos(angle);
+    let y = radius * Math.sin(angle);
+    
+    // Create 3D depth variation
+    let z = 0.15 * (
+        (1 - r) * Math.sin(modAngle * 2) + // Main depth variation
+        0.2 * Math.sin(modAngle * 6) * r + // Secondary depth detail
+        0.05 * Math.sin(modAngle * 18) * (r * r) // Fine surface texture
+    );
+    
+    // Calculate normal vector for better lighting
+    let nx = Math.cos(angle) * Math.sin(modAngle * 2);
+    let ny = Math.sin(angle) * Math.sin(modAngle * 2);
+    let nz = 1;
+    
+    // Normalize the normal vector
+    let len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+    nx /= len;
+    ny /= len;
+    nz /= len;
+    
+    return [x, y, z, nx, ny, nz];
+});
+
+let mapleLeaf = (nu, nv) => createMesh(nu, nv, (u,v) => {
+    let angle = 2 * Math.PI * u;
+    let r = v;
+    
+    // Create stem at bottom
+    if (u > 0.45 && u < 0.55 && v < 0.2) {
+        // Stem/petiole shape
+        let stemWidth = 0.04;
+        let stemX = (u - 0.5) * stemWidth;
+        let stemY = -0.3 + v * 1.5; // Extend below leaf
+        let stemZ = 0.1 * Math.sin(v * Math.PI);
+        
+        // Calculate normal for stem
+        let stemNx = stemX;
+        let stemNy = 1;
+        let stemNz = 0.1 * Math.cos(v * Math.PI);
+        let stemLen = Math.sqrt(stemNx*stemNx + stemNy*stemNy + stemNz*stemNz);
+        
+        return [stemX, stemY, stemZ, stemNx/stemLen, stemNy/stemLen, stemNz/stemLen];
+    }
+    
+    // Create five-fold symmetry for maple leaf
+    let modAngle = angle * 5;
+    
+    // Main leaf shape
+    let mainShape = Math.pow(Math.sin(modAngle/2), 2);
+    
+    // Add lobes and serrations
+    let lobes = 0.3 * Math.sin(modAngle * 2);
+    let serrations = 0.1 * Math.sin(modAngle * 15) * r;
+    
+    // Create vein pattern
+    let veins = 0.05 * Math.sin(angle * 10) * r;
+    
+    // Adjust base shape to connect with stem
+    let stemTransition = Math.max(0, Math.min(1, (Math.abs(angle - Math.PI) - 0.3) * 2));
+    
+    // Combine all features
+    let radius = r * (
+        0.8 + // Base size
+        mainShape * (1 - r * 0.4) + // Main leaf shape
+        lobes * r + // Rounded lobes
+        serrations * (r * r) + // Edge serrations
+        veins // Vein texture
+    ) * (stemTransition * 0.3 + 0.7); // Smooth transition to stem
+    
+    // Add subtle curling effect
+    let x = radius * Math.cos(angle);
+    let y = radius * Math.sin(angle);
+    let z = 0.2 * (
+        Math.sin(3 * r * Math.PI) + // Overall curl
+        0.1 * Math.sin(modAngle * 2) * r // Ripple effect
+    );
+    
+    // Calculate normal for better lighting
+    let nx = Math.cos(angle);
+    let ny = Math.sin(angle);
+    let nz = 1 - r * 0.5;
+    let len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+    
+    return [x, y, z, nx/len, ny/len, nz/len];
+});
+
+// DEFINE ALL THE OBJECT COLORS AND SHAPES
+
+let meshData = [
+   { type: 1, color: [0.8, 0.8, 1.0], mesh: new Float32Array(snowflake(600, 200)) },
+   { type: 1, color: [0.9, 0.3, 0.1], mesh: new Float32Array(mapleLeaf(600, 200)) },
+   // { type: 0, color: [1.,1.,1.], mesh: new Float32Array(diamond) }
+];
+
+
+
+// VERY SIMPLE VERTEX AND FRAGMENT SHADERS
+
+let vertexSize = 6;
+let vertexShader = `
+   attribute vec3 aPos, aNor;
+   uniform mat4 uMatrix, uInvMatrix;
+   varying vec3 vPos, vNor;
+   void main() {
+      vec4 pos = uMatrix * vec4(aPos, 1.0);
+      vec4 nor = vec4(aNor, 0.0) * uInvMatrix;
+      vPos = pos.xyz;
+      vNor = nor.xyz;
+      gl_Position = pos * vec4(1.,1.,-.1,1.);
+   }
+`;
+
+let fragmentShader = `
+precision mediump float;
+uniform vec3 uColor;
+varying vec3 vPos, vNor;
+
+void main(void) {
+    // Define light direction
+    vec3 lightDir = normalize(vec3(0.57, 0.57, 0.57));
+    
+    // Calculate diffuse lighting
+    float diffuse = max(0.0, dot(normalize(vNor), lightDir));
+    
+    // Add ambient lighting
+    float ambient = 0.2; // Adjust this value for more ambient light
+    
+    // Calculate specular highlights
+    vec3 viewDir = normalize(-vPos); // Assuming camera is at origin
+    vec3 reflectDir = reflect(-lightDir, normalize(vNor));
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0); // Shininess factor
+    
+    // Combine lighting components
+    float c = ambient + diffuse + spec;
+    
+    // Set final color with enhanced lighting
+    gl_FragColor = vec4(sqrt(c * uColor), 1.0);
+}
+`;
+
+// INITIALIZE GL AND GET UNIFORM NAMES
+
+let gl = start_gl(canvas1, meshData, vertexSize, vertexShader, fragmentShader);
+
+let uColor     = gl.getUniformLocation(gl.program, "uColor"    );
+let uInvMatrix = gl.getUniformLocation(gl.program, "uInvMatrix");
+let uMatrix    = gl.getUniformLocation(gl.program, "uMatrix"   );
+
+// THE ANIMATION LOOP
+
+let startTime = Date.now() / 1000;
+function renderFrame() {
+   requestAnimationFrame(renderFrame);
+   let time = Date.now() / 1000 - startTime, m;
+
+   // LOOP THROUGH ALL OBJECTS
+
+   for (let n = 0 ; n < meshData.length ; n++) {
+
+      // SET OBJECT MATRIX FOR THIS ANIMATION FRAME
+
+      let c = .5 * C(2 * Math.PI * n / meshData.length);
+      let s = .5 * S(2 * Math.PI * n / meshData.length);
+
+      m = mIdentity   ();
+      m = mPerspective(3, m);
+      m = mRotateY    (time, m);
+      m = mTranslate  (c,s,0, m);
+      m = mScale      (.16,.16,.16, m);
+
+      // SET THE VALUES OF VARIOUS UNIFORM VARIABLES
+
+      gl.uniform3fv      (uColor    , meshData[n].color );
+      gl.uniformMatrix4fv(uInvMatrix, false, mInverse(m));
+      gl.uniformMatrix4fv(uMatrix   , false, m          );
+
+      // RENDER THIS OBJECT
+
+      let mesh = meshData[n].mesh;
+      gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
+      gl.drawArrays(meshData[n].type ? gl.TRIANGLE_STRIP : gl.TRIANGLES, 0, mesh.length / vertexSize);
+   }
+}
+requestAnimationFrame(renderFrame);
+
+</script>
+
+
