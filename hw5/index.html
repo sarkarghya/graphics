@@ -181,121 +181,79 @@ let diamond = strToTris(
 );
 
 let snowflake = (nu, nv) => createMesh(nu, nv, (u,v) => {
-    // Base angle and radius
     let angle = 2 * Math.PI * u;
     let r = v;
-    
-    // Create main six-fold symmetry
     let modAngle = angle * 6;
-    
-    // Add multiple layers of detail
     let mainSpikes = Math.sin(modAngle);
     let secondarySpikes = 0.3 * Math.sin(modAngle * 3);
     let tertiarySpikes = 0.15 * Math.sin(modAngle * 12);
-    
-    // Create branching effect that increases toward tips
     let branchDetail = 0.1 * r * Math.sin(modAngle * 18);
-    
-    // Add crystalline pattern that varies with radius
     let crystalPattern = 0.05 * Math.sin(modAngle * 24) * (r * r);
-    
-    // Combine all features with radius-dependent scaling
     let radius = r * (
-        0.6 + // Base size
-        0.3 * mainSpikes * (1 - r * 0.3) + // Main spikes that taper
-        secondarySpikes * r + // Secondary features that grow at tips
-        tertiarySpikes * (r * r) + // Fine detail that increases at edges
-        branchDetail + // Branching texture
-        crystalPattern // Crystalline texture
+        0.6 +
+        0.3 * mainSpikes * (1 - r * 0.3) +
+        secondarySpikes * r +
+        tertiarySpikes * (r * r) +
+        branchDetail +
+        crystalPattern
     );
-    
-    // Convert to Cartesian coordinates
     let x = radius * Math.cos(angle);
     let y = radius * Math.sin(angle);
-    
-    // Create 3D depth variation
     let z = 0.15 * (
-        (1 - r) * Math.sin(modAngle * 2) + // Main depth variation
-        0.2 * Math.sin(modAngle * 6) * r + // Secondary depth detail
-        0.05 * Math.sin(modAngle * 18) * (r * r) // Fine surface texture
+        (1 - r) * Math.sin(modAngle * 2) +
+        0.2 * Math.sin(modAngle * 6) * r +
+        0.05 * Math.sin(modAngle * 18) * (r * r)
     );
-    
-    // Calculate normal vector for better lighting
     let nx = Math.cos(angle) * Math.sin(modAngle * 2);
     let ny = Math.sin(angle) * Math.sin(modAngle * 2);
     let nz = 1;
-    
-    // Normalize the normal vector
     let len = Math.sqrt(nx*nx + ny*ny + nz*nz);
     nx /= len;
     ny /= len;
     nz /= len;
-    
     return [x, y, z, nx, ny, nz];
 });
 
 let mapleLeaf = (nu, nv) => createMesh(nu, nv, (u,v) => {
     let angle = 2 * Math.PI * u;
     let r = v;
-    
-    // Create stem at bottom
     if (u > 0.45 && u < 0.55 && v < 0.2) {
-        // Stem/petiole shape
         let stemWidth = 0.04;
         let stemX = (u - 0.5) * stemWidth;
-        let stemY = -0.3 + v * 1.5; // Extend below leaf
+        let stemY = -0.3 + v * 1.5;
         let stemZ = 0.1 * Math.sin(v * Math.PI);
-        
-        // Calculate normal for stem
         let stemNx = stemX;
         let stemNy = 1;
         let stemNz = 0.1 * Math.cos(v * Math.PI);
         let stemLen = Math.sqrt(stemNx*stemNx + stemNy*stemNy + stemNz*stemNz);
-        
         return [stemX, stemY, stemZ, stemNx/stemLen, stemNy/stemLen, stemNz/stemLen];
     }
-    
-    // Create five-fold symmetry for maple leaf
     let modAngle = angle * 5;
-    
-    // Main leaf shape
     let mainShape = Math.pow(Math.sin(modAngle/2), 2);
-    
-    // Add lobes and serrations
     let lobes = 0.3 * Math.sin(modAngle * 2);
     let serrations = 0.1 * Math.sin(modAngle * 15) * r;
-    
-    // Create vein pattern
     let veins = 0.05 * Math.sin(angle * 10) * r;
-    
-    // Adjust base shape to connect with stem
     let stemTransition = Math.max(0, Math.min(1, (Math.abs(angle - Math.PI) - 0.3) * 2));
-    
-    // Combine all features
     let radius = r * (
-        0.8 + // Base size
-        mainShape * (1 - r * 0.4) + // Main leaf shape
-        lobes * r + // Rounded lobes
-        serrations * (r * r) + // Edge serrations
-        veins // Vein texture
-    ) * (stemTransition * 0.3 + 0.7); // Smooth transition to stem
-    
-    // Add subtle curling effect
+        0.8 +
+        mainShape * (1 - r * 0.4) +
+        lobes * r +
+        serrations * (r * r) +
+        veins
+    ) * (stemTransition * 0.3 + 0.7);
     let x = radius * Math.cos(angle);
     let y = radius * Math.sin(angle);
     let z = 0.2 * (
-        Math.sin(3 * r * Math.PI) + // Overall curl
-        0.1 * Math.sin(modAngle * 2) * r // Ripple effect
+        Math.sin(3 * r * Math.PI) +
+        0.1 * Math.sin(modAngle * 2) * r
     );
-    
-    // Calculate normal for better lighting
     let nx = Math.cos(angle);
     let ny = Math.sin(angle);
     let nz = 1 - r * 0.5;
     let len = Math.sqrt(nx*nx + ny*ny + nz*nz);
-    
     return [x, y, z, nx/len, ny/len, nz/len];
 });
+
 
 // DEFINE ALL THE OBJECT COLORS AND SHAPES
 
