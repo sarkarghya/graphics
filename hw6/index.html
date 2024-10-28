@@ -252,7 +252,7 @@ function renderFrame() {
    M.identity().perspective(3)
     .translate(0, 0.2, -0.5)
     .rotateX(0.3)
-    .rotateY(-Math.PI/2);
+    .rotateY(-Math.PI/4);
 
    let t = 2 * time;
    let bodySize = 0.3;
@@ -274,9 +274,9 @@ function renderFrame() {
    M.restore();
 
    M.save();
-      M.translate(bodySize, 0, 0);
+      M.translate(bodySize*0.9, 0, 0);
       M.rotateY(Math.PI / 2)
-      M.scale(0.15, 0.01, 0.25);
+      M.scale(0.10, 0.01, 0.05);
       render(Torus, [0.96, 0.1, 0.04]);
    M.restore();
 
