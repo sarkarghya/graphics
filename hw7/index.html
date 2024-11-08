@@ -275,18 +275,7 @@ function drawFrame() {
 
                         // Decorative patterns
                         for (let i = 0; i < 12; i++) {
-                           M.S();
-                           M.turnZ(i * Math.PI/6);
-                           
-                           M.move(-0.29, 0, 0);
-                           M.S().scale(.05, 0.01, 0.01).draw(Cylinder(20), axleColor, 1).R();
-                           M.R();
-                           
-                           //  M.move(0.45, 0, 0);
-                           //  M.S().scale(0.08, 0.02, 0.08).draw(Torus(20, 0.2), frameColor, 0.8);
-                           //  M.R();
-                           
-                           M.R();
+                           M.S().turnZ(i * Math.PI/6).move(-0.29, 0, 0).scale(.05, 0.01, 0.01).draw(Cylinder(20), axleColor, 1).R();
                         }
 
                         M.S().scale(0.1, 0.1, 0.12).draw(Cylinder(30), axleColor, 1).R();
