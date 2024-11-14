@@ -1,30 +1,198 @@
 <body bgcolor=#ffffff>
-   <h1 style="font-family: Arial, sans-serif; color: #333; text-align: center; margin: 20px 0; font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Click on Fruits!</h1>
+    <h1 style="font-family: Arial, sans-serif; color: #333; text-align: center; margin: 20px 0; font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Click on Fruits!</h1>
 <canvas id=textureCanvas width=512 height=512 style=position:absolute;left:-1000></canvas>
 <center><canvas id=canvas1 width=800 height=800></canvas>
 <script src=lib.js></script>
 <script>
 
-// Texture loading
-texture(0, 'orange.jpg');
+texture(0, 'brick.png');
 texture(1, 'polka_dots.png');
 texture(2, textureCanvas);    
 texture(3, 'bumpy.jpg');
 texture(4, 'check-button.png');
-
-// Fruit textures - make sure these files exist in your directory
 texture(5, 'orange.png');
 texture(6, 'apple.png');
 texture(7, 'strawberry.png');
-texture(8, 'avacado.png');
+texture(8, 'avocado.png');
 texture(9, 'pineapple.png');
 texture(10, 'lemon.png');
 
+let fruits = [
+    { pos: [-.8, .6, 0], vel: [0.05, 0.05, 0], type: 'orange', texture: 5, active: true, particles: [], exploding: false },
+    { pos: [0, .6, 0], vel: [0.05, -0.05, 0], type: 'apple', texture: 6, active: true, particles: [], exploding: false },
+    { pos: [.8, .6, 0], vel: [-0.05, 0.05, 0], type: 'strawberry', texture: 7, active: true, particles: [], exploding: false },
+    { pos: [-.8, 0, 0], vel: [0.05, 0.05, 0], type: 'avocado', texture: 8, active: true, particles: [], exploding: false },
+    { pos: [.8, 0, 0], vel: [-0.05, -0.05, 0], type: 'pineapple', texture: 9, active: true, particles: [], exploding: false },
+    { pos: [0, 0, 0], vel: [0.05, -0.05, 0], type: 'lemon', texture: 10, active: true, particles: [], exploding: false }
+];
+
+// Particle creation
+function createParticles(pos, texture) {
+    let particles = [];
+    for (let i = 0; i < 20; i++) {
+        particles.push({
+            pos: [...pos],
+            vel: [
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1
+            ],
+            rot: Math.random() * Math.PI * 2,
+            scale: 0.05 + Math.random() * 0.03,
+            life: 1.0,
+            texture: texture
+        });
+    }
+    return particles;
+}
+
+canvas1.addEventListener('click', (event) => {
+    let rect = canvas1.getBoundingClientRect();
+    let x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    let y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    fruits.forEach(fruit => {
+        if (fruit.active && 
+            Math.abs(x - fruit.pos[0]) < 0.2 && 
+            Math.abs(y - fruit.pos[1]) < 0.2) {
+            fruit.active = false;
+            fruit.exploding = true;
+            fruit.particles = createParticles(fruit.pos, fruit.texture);
+        }
+    });
+});
+
+function drawOrange(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+        M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 5).R();
+        for(let i = 0; i < 8; i++) {
+            let angle = i * Math.PI/4;
+            M.S().move(0.08*Math.cos(angle), 0.08*Math.sin(angle), 0.08)
+                    .scale(.02).draw(Torus(16), [0.9,0.4,0], 0.8).R();
+        }
+    M.R();
+}
+
+function drawApple(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+        M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 6).R();
+        M.S().move(0, 0.15, 0).turnX(Math.PI/6)
+                .scale(.02, .08, .02).draw(Cylinder(8), [0.3,0.2,0], 1).R();
+        M.S().move(0.02, 0.12, 0).turnZ(Math.PI/4).turnY(t)
+                .scale(.05, .02, .05).draw(Cube(), [0,0.7,0], 1).R();
+    M.R();
+}
+
+function drawStrawberry(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+    M.S().scale(.12).draw(Sphere(30), [1,1,1], 1, 7).R();
+        for(let i = 0; i < 20; i++) {
+            let phi = Math.random() * Math.PI;
+            let theta = Math.random() * Math.PI * 2;
+            let r = 0.06;
+            M.S().move(r*Math.sin(phi)*Math.cos(theta),
+                        r*Math.cos(phi),
+                        r*Math.sin(phi)*Math.sin(theta))
+                    .scale(.01).draw(Sphere(8), [1,1,0.8], 0.8).R();
+        }
+        for(let i = 0; i < 5; i++) {
+            M.S().move(0, 0.12, 0).turnY(i*Math.PI/2.5).turnX(-0.5)
+                    .scale(.04, .06, .01).draw(Cube(), [0,0.7,0], 1).R();
+        }
+    M.R();
+}
+
+function drawAvocado(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+        M.S().scale(.18).draw(Sphere(30), [1,1,1], 1, 8).R();
+        M.S().scale(.1).draw(Sphere(20), [0.4,0.2,0], 1).R();
+    M.R();
+}
+
+function drawPineapple(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+        M.S().scale(.15, .2, .15).draw(Sphere(30), [1,1,1], 1, 9).R();
+        for(let i = 0; i < 5; i++) {
+            M.S().move(0, 0.2, 0).turnY(i*Math.PI/2.5).turnX(-0.5)
+                    .scale(.04, .1, .01).draw(Cube(), [0,0.7,0], 1).R();
+        }
+    M.R();
+}
+
+function drawLemon(x, y, z, t) {
+    M.S().move(x, y, z).turnY(t);
+        M.S().scale(.2, .15, .15).draw(Sphere(30), [1,1,1], 1, 10).R();
+    M.R();
+}
+
+function drawFruit(type, x, y, z, t) {
+    switch(type) {
+        case 'orange':
+            drawOrange(x, y, z, t);
+            break;
+        case 'apple':
+            drawApple(x, y, z, t);
+            break;
+        case 'strawberry':
+            drawStrawberry(x, y, z, t);
+            break;
+        case 'avocado':
+            drawAvocado(x, y, z, t);
+            break;
+        case 'pineapple':
+            drawPineapple(x, y, z, t);
+            break;
+        case 'lemon':
+            drawLemon(x, y, z, t);
+            break;
+    }
+}
+
+function updateFruitPositions(delta) {
+    fruits.forEach(fruit => {
+        if (fruit.active) {
+            fruit.pos[0] += fruit.vel[0] * delta;
+            fruit.pos[1] += fruit.vel[1] * delta;
+
+            if (fruit.pos[0] > 0.85 || fruit.pos[0] < -0.85) {
+                fruit.vel[0] *= -1;
+                fruit.pos[0] = Math.max(-0.85, Math.min(0.85, fruit.pos[0]));
+            }
+            if (fruit.pos[1] > 0.85 || fruit.pos[1] < -0.85) {
+                fruit.vel[1] *= -1;
+                fruit.pos[1] = Math.max(-0.85, Math.min(0.85, fruit.pos[1]));
+            }
+        }
+    });
+}
+
+function randomizeVelocities() {
+    fruits.forEach(fruit => {
+        if (fruit.active) {
+            fruit.vel = [
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1,
+                0
+            ];
+        }
+    });
+}
+
+setInterval(randomizeVelocities, 3000);
+
+let lastTime = Date.now();
+
 function drawFrame() {
     requestAnimationFrame(drawFrame);
-    let t = Date.now() / 1000;
+    let currentTime = Date.now();
+    let delta = (currentTime - lastTime) / 1000; // Convert to seconds
+    lastTime = currentTime;
 
-    // Canvas texture update
+    let t = currentTime / 1000;
+
+    updateFruitPositions(delta);
+
+
     let ctx = textureCanvas.getContext('2d');
     ctx.fillStyle = '#ffd0d0';
     ctx.fillRect(0, 0, 512, 512);
@@ -33,90 +201,50 @@ function drawFrame() {
     let minutes = (t/60>>0)%60, seconds = t%60>>0;
     ctx.fillText(minutes + 'm ' + seconds + 's', 60, 280);
 
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 80px Arial';
+    ctx.fillText('Click on Fruits!', 40, 150);
+
     M.S().perspective(3);
         
-        // Orange
-        M.S().move(-.8, .6, 0).turnY(t);
-            // Main orange body with texture
-            M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 5).R();  // Changed color to white to show texture better
-            for(let i = 0; i < 8; i++) {
-                let angle = i * Math.PI/4;
-                M.S().move(0.08*Math.cos(angle), 0.08*Math.sin(angle), 0.08)
-                     .scale(.02).draw(Torus(16), [0.9,0.4,0], 0.8).R();
-            }
-        M.R();
+        
+    fruits.forEach(fruit => {
+        if (fruit.active) {
+            drawFruit(fruit.type, fruit.pos[0], fruit.pos[1], fruit.pos[2], t);
+        } else if (fruit.exploding) {
+            fruit.particles.forEach((particle, index) => {
 
-        // Apple
-        M.S().move(0, .6, 0).turnY(-t);
-            // Main apple body with texture
-            M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 6).R();  // Changed color to white
-            M.S().move(0, 0.15, 0).turnX(Math.PI/6)
-                 .scale(.02, .08, .02).draw(Cylinder(8), [0.3,0.2,0], 1).R();
-            M.S().move(0.02, 0.12, 0).turnZ(Math.PI/4).turnY(t)
-                 .scale(.05, .02, .05).draw(Cube(), [0,0.7,0], 1).R();
-        M.R();
-
-        // Strawberry
-        M.S().move(.8, .6, 0).turnY(t);
-            // Main body with texture
-            M.S().scale(.12).draw(Sphere(30), [1,1,1], 1, 7).R();  // Changed color to white
-            // Seeds
-            for(let i = 0; i < 20; i++) {
-                let phi = Math.random() * Math.PI;
-                let theta = Math.random() * Math.PI * 2;
-                let r = 0.06;
-                M.S().move(r*Math.sin(phi)*Math.cos(theta),
-                          r*Math.cos(phi),
-                          r*Math.sin(phi)*Math.sin(theta))
-                     .scale(.01).draw(Sphere(8), [1,1,0.8], 0.8).R();
-            }
-            // Leaves
-            for(let i = 0; i < 5; i++) {
-                M.S().move(0, 0.12, 0).turnY(i*Math.PI/2.5).turnX(-0.5)
-                     .scale(.04, .06, .01).draw(Cube(), [0,0.7,0], 1).R();
-            }
-        M.R();
-
-        // Avocado
-        M.S().move(-.8, 0, 0).turnY(-t);
-            // Outer shell with texture
-            M.S().scale(.18).draw(Sphere(30), [1,1,1], 1, 8).R();  // Changed color to white
-            M.S().scale(.1).draw(Sphere(20), [0.4,0.2,0], 1).R();
-        M.R();
-
-        // Pineapple
-        M.S().move(.8, 0, 0).turnY(t);
-            // Main body with texture
-            M.S().scale(.2).draw(Cylinder(30), [1,1,1], 1, 9).R();  // Changed color to white
-            // Pattern
-            for(let i = 0; i < 6; i++) {
-                for(let j = 0; j < 8; j++) {
-                    M.S().move(0.1*Math.cos(j*Math.PI/4), 
-                             -0.15 + i*0.06,
-                             0.1*Math.sin(j*Math.PI/4))
-                         .scale(.03).draw(Cube(), [0.8,0.6,0], 0.8).R();
+                particle.vel[1] -= 0.001;
+                
+                particle.pos[0] += particle.vel[0];
+                particle.pos[1] += particle.vel[1];
+                particle.pos[2] += particle.vel[2];
+                
+                particle.life -= 0.02;
+                
+                if (particle.life > 0) {
+                    M.S().move(particle.pos[0], particle.pos[1], particle.pos[2])
+                            .turnY(particle.rot)
+                            .scale(particle.scale * particle.life)
+                            .draw(Sphere(8), [1,1,1], particle.life, particle.texture).R();
+                } else {
+                    fruit.particles.splice(index, 1);
                 }
+            });
+            
+            if (fruit.particles.length === 0) {
+                fruit.exploding = false;
+                setTimeout(() => {
+                    fruit.active = true;
+                }, 3000);
             }
-            // Leaves
-            for(let i = 0; i < 8; i++) {
-                M.S().move(0, 0.2, 0).turnY(i*Math.PI/4).turnX(-0.3)
-                     .scale(.02, .15, .01).draw(Cube(), [0,0.7,0], 1).R();
-            }
-        M.R();
-
-        // Lemon
-        M.S().move(0, 0, 0).turnY(-t);
-            // Main body with texture
-            M.S().scale(.13, .13, .16).draw(Sphere(30), [1,1,1], 1, 10).R();  // Changed color to white
-            M.S().move(0, 0, 0.08).scale(.04).draw(Torus(16), [0.9,0.8,0], 0.8).R();
-            M.S().move(0, 0, -0.08).scale(.04).draw(Torus(16), [0.9,0.8,0], 0.8).R();
-        M.R();
+        }
+    });
 
     M.R();
 }
+
 requestAnimationFrame(drawFrame);
 
 </script>
-
-
-
+</body>
