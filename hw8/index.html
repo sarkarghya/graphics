@@ -1,0 +1,122 @@
+<body bgcolor=#ffffff>
+   <h1 style="font-family: Arial, sans-serif; color: #333; text-align: center; margin: 20px 0; font-size: 36px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">Click on Fruits!</h1>
+<canvas id=textureCanvas width=512 height=512 style=position:absolute;left:-1000></canvas>
+<center><canvas id=canvas1 width=800 height=800></canvas>
+<script src=lib.js></script>
+<script>
+
+// Texture loading
+texture(0, 'orange.jpg');
+texture(1, 'polka_dots.png');
+texture(2, textureCanvas);    
+texture(3, 'bumpy.jpg');
+texture(4, 'check-button.png');
+
+// Fruit textures - make sure these files exist in your directory
+texture(5, 'orange.png');
+texture(6, 'apple.png');
+texture(7, 'strawberry.png');
+texture(8, 'avacado.png');
+texture(9, 'pineapple.png');
+texture(10, 'lemon.png');
+
+function drawFrame() {
+    requestAnimationFrame(drawFrame);
+    let t = Date.now() / 1000;
+
+    // Canvas texture update
+    let ctx = textureCanvas.getContext('2d');
+    ctx.fillStyle = '#ffd0d0';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillStyle = 'black';
+    ctx.font = '100px Arial';
+    let minutes = (t/60>>0)%60, seconds = t%60>>0;
+    ctx.fillText(minutes + 'm ' + seconds + 's', 60, 280);
+
+    M.S().perspective(3);
+        
+        // Orange
+        M.S().move(-.8, .6, 0).turnY(t);
+            // Main orange body with texture
+            M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 5).R();  // Changed color to white to show texture better
+            for(let i = 0; i < 8; i++) {
+                let angle = i * Math.PI/4;
+                M.S().move(0.08*Math.cos(angle), 0.08*Math.sin(angle), 0.08)
+                     .scale(.02).draw(Torus(16), [0.9,0.4,0], 0.8).R();
+            }
+        M.R();
+
+        // Apple
+        M.S().move(0, .6, 0).turnY(-t);
+            // Main apple body with texture
+            M.S().scale(.15).draw(Sphere(30), [1,1,1], 1, 6).R();  // Changed color to white
+            M.S().move(0, 0.15, 0).turnX(Math.PI/6)
+                 .scale(.02, .08, .02).draw(Cylinder(8), [0.3,0.2,0], 1).R();
+            M.S().move(0.02, 0.12, 0).turnZ(Math.PI/4).turnY(t)
+                 .scale(.05, .02, .05).draw(Cube(), [0,0.7,0], 1).R();
+        M.R();
+
+        // Strawberry
+        M.S().move(.8, .6, 0).turnY(t);
+            // Main body with texture
+            M.S().scale(.12).draw(Sphere(30), [1,1,1], 1, 7).R();  // Changed color to white
+            // Seeds
+            for(let i = 0; i < 20; i++) {
+                let phi = Math.random() * Math.PI;
+                let theta = Math.random() * Math.PI * 2;
+                let r = 0.06;
+                M.S().move(r*Math.sin(phi)*Math.cos(theta),
+                          r*Math.cos(phi),
+                          r*Math.sin(phi)*Math.sin(theta))
+                     .scale(.01).draw(Sphere(8), [1,1,0.8], 0.8).R();
+            }
+            // Leaves
+            for(let i = 0; i < 5; i++) {
+                M.S().move(0, 0.12, 0).turnY(i*Math.PI/2.5).turnX(-0.5)
+                     .scale(.04, .06, .01).draw(Cube(), [0,0.7,0], 1).R();
+            }
+        M.R();
+
+        // Avocado
+        M.S().move(-.8, 0, 0).turnY(-t);
+            // Outer shell with texture
+            M.S().scale(.18).draw(Sphere(30), [1,1,1], 1, 8).R();  // Changed color to white
+            M.S().scale(.1).draw(Sphere(20), [0.4,0.2,0], 1).R();
+        M.R();
+
+        // Pineapple
+        M.S().move(.8, 0, 0).turnY(t);
+            // Main body with texture
+            M.S().scale(.2).draw(Cylinder(30), [1,1,1], 1, 9).R();  // Changed color to white
+            // Pattern
+            for(let i = 0; i < 6; i++) {
+                for(let j = 0; j < 8; j++) {
+                    M.S().move(0.1*Math.cos(j*Math.PI/4), 
+                             -0.15 + i*0.06,
+                             0.1*Math.sin(j*Math.PI/4))
+                         .scale(.03).draw(Cube(), [0.8,0.6,0], 0.8).R();
+                }
+            }
+            // Leaves
+            for(let i = 0; i < 8; i++) {
+                M.S().move(0, 0.2, 0).turnY(i*Math.PI/4).turnX(-0.3)
+                     .scale(.02, .15, .01).draw(Cube(), [0,0.7,0], 1).R();
+            }
+        M.R();
+
+        // Lemon
+        M.S().move(0, 0, 0).turnY(-t);
+            // Main body with texture
+            M.S().scale(.13, .13, .16).draw(Sphere(30), [1,1,1], 1, 10).R();  // Changed color to white
+            M.S().move(0, 0, 0.08).scale(.04).draw(Torus(16), [0.9,0.8,0], 0.8).R();
+            M.S().move(0, 0, -0.08).scale(.04).draw(Torus(16), [0.9,0.8,0], 0.8).R();
+        M.R();
+
+    M.R();
+}
+requestAnimationFrame(drawFrame);
+
+</script>
+
+
+
