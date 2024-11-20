@@ -1,0 +1,223 @@
+<head>
+    <style>
+        .controls {
+            display: flex;
+            align-items: center;
+        }
+
+        .controls span {
+            margin-left: 10px;
+            color: brown;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+
+<canvas id="curveEditor" width="800" height="600"></canvas>
+<div class="controls">
+  
+  
+  <button id="clearCanvas">Clear Canvas</button>
+  <select id="curveType">
+    <option value="bezier">Bézier</option>
+    <option>Sorry still working</option>
+  </select>
+  <button id="animate">Animate</button>
+  <span>Click to create points. Points can be dragged. Create atleast four points then animate!</span>
+</div>
+
+<script>
+const canvas = document.getElementById('curveEditor');
+const ctx = canvas.getContext('2d');
+let points = [];
+let selectedPoint = null;
+let isDragging = false;
+let isAnimating = false;
+let startTime = Date.now();
+
+const bezierMatrix = [
+  [-1, 3, -3, 1],
+  [3, -6, 3, 0],
+  [-3, 3, 0, 0],
+  [1, 0, 0, 0]
+];
+
+const hermiteMatrix = [
+  [2, -3, 0, 1],
+  [-2, 3, 0, 0],
+  [1, -2, 1, 0],
+  [1, -1, 0, 0]
+];
+
+class CurveEditor {
+  constructor() {
+    this.curves = [];
+    this.currentCurveType = 'bezier';
+    this.animationPhase = 0;
+  }
+
+  drawControlPoint(x, y, isSelected = false) {
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = isSelected ? '#ff4444' : '#2196F3';
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.stroke();
+  }
+
+  evaluateCurve(t, p0, p1, p2, p3) {
+    const matrix = this.currentCurveType === 'bezier' ? bezierMatrix : hermiteMatrix;
+    const t3 = t * t * t;
+    const t2 = t * t;
+    const basis = [t3, t2, t, 1];
+    
+    let x = 0, y = 0;
+    for (let i = 0; i < 4; i++) {
+      const b = basis[i];
+      x += b * (matrix[i][0] * p0.x + matrix[i][1] * p1.x + matrix[i][2] * p2.x + matrix[i][3] * p3.x);
+      y += b * (matrix[i][0] * p0.y + matrix[i][1] * p1.y + matrix[i][2] * p2.y + matrix[i][3] * p3.y);
+    }
+    return { x, y };
+  }
+
+  drawCurve() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw grid
+    this.drawGrid();
+
+    for (let i = 0; i < points.length - 3; i += 3) {
+      ctx.beginPath();
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const p2 = points[i + 2];
+      const p3 = points[i + 3];
+
+      ctx.moveTo(p0.x, p0.y);
+      
+      for (let t = 0; t <= 1; t += 0.01) {
+        const pt = this.evaluateCurve(t, p0, p1, p2, p3);
+        ctx.lineTo(pt.x, pt.y);
+      }
+
+      ctx.strokeStyle = `hsl(${(i * 30) % 360}, 70%, 50%)`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Draw control points
+    points.forEach((point, index) => {
+      this.drawControlPoint(point.x, point.y, point === selectedPoint);
+    });
+
+    // Draw control lines
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    points.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  drawGrid() {
+    ctx.strokeStyle = '#eee';
+    ctx.lineWidth = 1;
+    const gridSize = 20;
+
+    for (let x = 0; x < canvas.width; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y < canvas.height; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+  }
+
+  animate() {
+    if (!isAnimating) return;
+    
+    const time = (Date.now() - startTime) / 1000;
+    this.animationPhase = (time % 2) / 2;
+
+    points.forEach((point, index) => {
+      point.y += Math.sin(time * 2 + index) * 2;
+      point.x += Math.cos(time * 2 + index) * 2;
+    });
+
+    this.drawCurve();
+    requestAnimationFrame(() => this.animate());
+  }
+}
+
+const editor = new CurveEditor();
+
+// Event Listeners
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  selectedPoint = points.find(point => 
+    Math.hypot(point.x - x, point.y - y) < 10
+  );
+  
+  if (selectedPoint) {
+    isDragging = true;
+  } else {
+    points.push({ x, y });
+    editor.drawCurve();
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (isDragging && selectedPoint) {
+    const rect = canvas.getBoundingClientRect();
+    selectedPoint.x = e.clientX - rect.left;
+    selectedPoint.y = e.clientY - rect.top;
+    editor.drawCurve();
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  isDragging = false;
+});
+
+document.getElementById('curveType').addEventListener('change', (e) => {
+  editor.currentCurveType = e.target.value;
+  editor.drawCurve();
+});
+
+document.getElementById('animate').addEventListener('click', () => {
+  isAnimating = !isAnimating;
+  if (isAnimating) {
+    startTime = Date.now();
+    editor.animate();
+  }
+});
+
+document.getElementById('clearCanvas').addEventListener('click', () => {
+  points = [];
+  editor.drawCurve();
+});
+
+document.getElementById('deletePoint').addEventListener('click', () => {
+  if (selectedPoint) {
+    points = points.filter(p => p !== selectedPoint);
+    selectedPoint = null;
+    editor.drawCurve();
+  }
+});
+
+editor.drawCurve();
+</script>

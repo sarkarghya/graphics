@@ -1,0 +1,213 @@
+<canvas id="curveEditor" width="800" height="600"></canvas>
+<div>
+  <button id="addPoint">Add Point</button>
+  <button id="deletePoint">Delete Point</button>
+  <button id="clearCanvas">Clear Canvas</button>
+  <button id="drawCircle">Draw Circle</button>
+  <button id="drawSquare">Draw Square</button>
+  <button id="drawTriangle">Draw Triangle</button>
+  <button id="drawStar">Draw Star</button>
+</div>
+
+<script>
+const canvas = document.getElementById('curveEditor');
+const ctx = canvas.getContext('2d');
+const addPointBtn = document.getElementById('addPoint');
+const deletePointBtn = document.getElementById('deletePoint');
+const clearCanvasBtn = document.getElementById('clearCanvas');
+const drawCircleBtn = document.getElementById('drawCircle');
+const drawSquareBtn = document.getElementById('drawSquare');
+const drawTriangleBtn = document.getElementById('drawTriangle');
+const drawStarBtn = document.getElementById('drawStar');
+
+let points = [];
+let selectedPoint = null;
+let isDragging = false;
+
+function drawPoint(x, y, color = 'black') {
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawBezierCurve() {
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  
+  for (let i = 1; i < points.length; i += 3) {
+    if (i + 2 < points.length) {
+      ctx.bezierCurveTo(
+        points[i].x, points[i].y,
+        points[i + 1].x, points[i + 1].y,
+        points[i + 2].x, points[i + 2].y
+      );
+    }
+  }
+  
+  ctx.strokeStyle = 'blue';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawControlLines() {
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    if (i === 0) {
+      ctx.moveTo(points[i].x, points[i].y);
+    } else {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+  }
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  if (points.length > 0) {
+    drawBezierCurve();
+    drawControlLines();
+    points.forEach((point, index) => {
+      drawPoint(point.x, point.y, index % 3 === 0 ? 'red' : 'black');
+    });
+  }
+}
+
+function addPoint(x, y) {
+  points.push({ x, y });
+  render();
+}
+
+function deleteSelectedPoint() {
+  if (selectedPoint !== null) {
+    const index = points.indexOf(selectedPoint);
+    if (index !== -1) {
+      points.splice(index, 1);
+      selectedPoint = null;
+      render();
+    }
+  }
+}
+
+function clearCanvas() {
+  points = [];
+  selectedPoint = null;
+  render();
+}
+
+function drawCircle() {
+   const centerX = canvas.width / 2;
+   const centerY = canvas.height / 2;
+   const radius = Math.min(canvas.width / 4, canvas.height / 4);
+   points = [
+     { x: centerX - radius, y: centerY },
+     { x: centerX + radius, y: centerY },
+     { x: centerX + radius * Math.cos(Math.PI /4), y: centerY - radius * Math.sin(Math.PI /4)},
+     { x: centerX + radius * Math.cos(3*Math.PI/4), y: centerY - radius * Math.sin(3*Math.PI/4)},
+     { x: centerX - radius * Math.cos(3*Math.PI/4), y: centerY - radius * Math.sin(3*Math.PI/4)},
+     { x: centerX - radius * Math.cos(Math.PI /4), y: centerY - radius * Math.sin(Math.PI /4)},
+   ];
+   render();
+}
+
+function drawSquare() {
+   const size = Math.min(canvas.width / 4, canvas.height / 4);
+   const topLeftX = (canvas.width - size) /2;
+   const topLeftY = (canvas.height - size) /2;
+   points = [
+       { x: topLeftX, y: topLeftY },
+       { x: topLeftX + size, y: topLeftY },
+       { x: topLeftX + size, y: topLeftY + size },
+       { x: topLeftX , y: topLeftY + size },
+   ];
+   render();
+}
+
+function drawTriangle() {
+   const height = Math.min(canvas.width /4 , canvas.height /4);
+   const baseWidth = height * Math.sqrt(3);
+   const centerX = canvas.width /2;
+   const centerY = canvas.height /2;
+
+   points = [
+       { x: centerX , y: centerY - height/2 },
+       { x: centerX - baseWidth/2 , y: centerY + height/2 },
+       { x: centerX + baseWidth/2 , y: centerY + height/2 },
+   ];
+   render();
+}
+
+function drawStar() {
+   const cx = canvas.width /2;
+   const cy = canvas.height /2;
+   const spikes =5;
+   const outerRadius=100;
+   const innerRadius=50;
+
+   points=[];
+   
+   for (let i=0; i<spikes; i++) {
+       let angle= (i* Math.PI)/spikes;
+
+       // Outer point
+       points.push({ 
+           x: cx + outerRadius * Math.cos(angle), 
+           y: cy + outerRadius * Math.sin(angle)
+       });
+
+       // Inner point
+       angle+=Math.PI/spikes;
+       points.push({ 
+           x: cx + innerRadius * Math.cos(angle), 
+           y: cy + innerRadius * Math.sin(angle)
+       });
+   }
+   
+   render();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    selectedPoint = points.find(point => 
+        Math.abs(point.x - x) < 5 && Math.abs(point.y - y) < 5
+    );
+
+    if (selectedPoint) {
+        isDragging = true;
+    } else {
+        addPoint(x, y);
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (isDragging && selectedPoint) {
+        const rect = canvas.getBoundingClientRect();
+        selectedPoint.x = e.clientX - rect.left;
+        selectedPoint.y = e.clientY - rect.top;
+        render();
+    }
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+addPointBtn.addEventListener('click', () => {
+    addPoint(Math.random() * canvas.width, Math.random() * canvas.height);
+});
+
+deletePointBtn.addEventListener('click', deleteSelectedPoint);
+clearCanvasBtn.addEventListener('click', clearCanvas);
+drawCircleBtn.addEventListener('click', drawCircle);
+drawSquareBtn.addEventListener('click', drawSquare);
+drawTriangleBtn.addEventListener('click', drawTriangle);
+drawStarBtn.addEventListener('click', drawStar);
+
+render();
+</script>
