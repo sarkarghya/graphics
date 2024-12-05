@@ -1,0 +1,57 @@
+<body bgcolor=#808080><font face=courier>
+   <center><canvas id=canvas1 width=900 height=700></canvas>
+   <script src=lib.js></script>
+   <script>
+   
+   trackMouse(canvas1);
+   texture(0,'brick.png');
+
+   
+   let myCube     = Cube();
+   let myCylinder = Cylinder(20);
+   let mySphere   = Sphere(20);
+
+   
+   addMaterial(1, `color = mix(vec3(0.2, 0.5, 0.8), vec3(0.8, 0.2, 0.2), smoothstep(0.0, 1.0, vTpos.y));`);
+   startGL(canvas1);
+   
+   let spring = new Spring();
+   spring.setMass(2);
+   
+   function drawFrame() {
+       requestAnimationFrame(drawFrame);
+       let time = Date.now() / 1000;
+   
+       VM.identity().perspective(3).scale(1, canvas1.width / canvas1.height, 1);
+   
+       if (!isPhone())
+           VM.turnX(canvas1.ry / 30).turnY(canvas1.rx / 30);
+   
+       drawScene(() => {
+           material = 1;
+   
+           let basePos = [0, 0, -3];
+           let targetPos = [0.5 * Math.sin(time), 0.5 * Math.cos(time), -3];
+           let elbowPos = add(basePos, ik(0.5, 0.5, subtract(targetPos, basePos), [0, -1, 0]));
+   
+           M.S().move(basePos).scale(.07).draw(mySphere, [0.5, 1, 0], [0.5]).R();
+           
+           M.S().move(elbowPos).scale(.07).draw(mySphere, [0.5, 1, 0], [0.5]).R();
+   
+           M.S().move(mix(basePos, elbowPos, .5)).aim(subtract(elbowPos, basePos)).scale(.02,.02,distance(basePos, elbowPos) / 2).draw(myCube,[1,1,1]).R();
+   
+           spring.setForce(elbowPos[0]);
+           spring.update(.03);
+           let springPosition = spring.getPosition();
+           
+           let objectToPick = add(elbowPos, scale(normalize([springPosition,-.4,0]), .4));
+           
+           M.S().move(objectToPick).aim(subtract(objectToPick, elbowPos)).scale(.1).draw(myCube,[1,.5,.5]).R();
+           
+           // DISTANT OBJECT TO SHOW FOG EFFECT
+           M.S().move(0, -2, -12).scale(2).draw(myCube,[1,.8,.8], 1, 0).R();
+       });
+   }
+   requestAnimationFrame(drawFrame);
+   
+   </script>
