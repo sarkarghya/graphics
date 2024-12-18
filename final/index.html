@@ -1,0 +1,640 @@
+<body bgcolor=#0909><font face=courier>
+   <center>
+
+      <style>
+         input[type="range"] {
+             -webkit-appearance: none;
+             width: 200px;
+             height: 15px;
+             background: linear-gradient(to right, #1a3872, #2d5bb9);
+             border-radius: 10px;
+             outline: none;
+             opacity: 0.8;
+             transition: opacity .2s;
+         }
+         
+         input[type="range"]:hover {
+             opacity: 1;
+         }
+         
+         input[type="range"]::-webkit-slider-thumb {
+             -webkit-appearance: none;
+             width: 25px;
+             height: 25px;
+             background: #8ba3d9;
+             border-radius: 50%;
+             cursor: pointer;
+             box-shadow: 0 0 5px rgba(0,0,0,0.3);
+             transition: all .2s;
+         }
+         
+         input[type="range"]::-webkit-slider-thumb:hover {
+             background: #a8b9e5;
+             box-shadow: 0 0 8px rgba(0,0,0,0.5);
+         }
+         
+         .control-table {
+             background: rgba(0,0,0,0.2);
+             padding: 20px;
+             border-radius: 15px;
+             margin-right: 20px;
+         }
+         
+         .control-label {
+             color: white;
+             font-family: 'Courier New', monospace;
+             font-size: 14px;
+             padding: 8px 0;
+             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+         }
+         </style>
+   <table>
+   <tr><th valign=top>
+   <table>
+   <tr><td><input type=range id=heightSlider  ></input> <font color=white><big> Height
+   <tr><td><input type=range id=hipwidthSlider></input> <font color=white><big> Width
+   <tr><td><input type=range id=radiusSlider  ></input> <font color=white><big> Limb thickness
+   <tr><td><input type=range id=strideSlider  ></input> <font color=white><big> Stride length
+   <tr><td><input type=range id=legliftSlider ></input> <font color=white><big> Feet lift
+   <tr><td><input type=range id=hipswaySlider ></input> <font color=white><big> Hip sway
+   <tr><td><input type=range id=paceSlider    ></input> <font color=white><big> Pace
+   <tr><td><input type=range id=goSlider      ></input> <font color=white><big> Go
+   <tr><td><input type=range id=bodyLengthSlider></input> <font color=white><big> Body Length
+   </table>
+   <th><canvas id=canvas1 width=700 height=700></canvas>
+   </table>
+   
+   <script src=lib.js></script>
+   <script>
+   
+// Style all sliders
+let sliders = document.getElementsByTagName('input');
+for (let slider in sliders) {
+    if (sliders[slider].style) {
+        sliders[slider].style.width = '200px';
+    }
+}
+
+
+// Add joystick container
+let joystickContainer = document.createElement('div');
+joystickContainer.id = 'joystickDiv';
+joystickContainer.style.cssText = `
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: rgba(74, 144, 226, 0.2);
+    border: 2px solid #4a90e2;
+    position: relative;
+    margin: 10px 10px;
+    touch-action: none;
+    display: inline-block;
+`;
+
+// Add joystick handle
+let joystickHandle = document.createElement('div');
+joystickHandle.style.cssText = `
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(to bottom, #4a90e2, #357abd);
+    border-radius: 50%;
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+`;
+
+joystickContainer.appendChild(joystickHandle);
+document.querySelector('table table').appendChild(document.createElement('tr')).appendChild(document.createElement('td')).appendChild(joystickContainer);
+
+// Joystick functionality
+let isDragging = false;
+let heading = 0.5;  // Default heading value
+let centerX = 75;
+let centerY = 75;
+
+function handleJoystickMove(e) {
+    if (!isDragging) return;
+    
+    let rect = joystickContainer.getBoundingClientRect();
+    let x = (e.clientX || e.touches[0].clientX) - rect.left;
+    let y = (e.clientY || e.touches[0].clientY) - rect.top;
+    
+    let dx = x - centerX;
+    let dy = y - centerY;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+    let radius = 50;
+    
+    if (distance > radius) {
+        x = centerX + (dx / distance) * radius;
+        y = centerY + (dy / distance) * radius;
+    }
+    
+    joystickHandle.style.left = (x - 25) + 'px';
+    joystickHandle.style.top = (y - 25) + 'px';
+    
+    // Calculate heading from joystick position
+    heading = (Math.atan2(dy, dx) / TAU + 0.5) % 1;
+}
+
+// Event listeners
+joystickHandle.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', handleJoystickMove);
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+    joystickHandle.style.left = '50px';
+    joystickHandle.style.top = '50px';
+    heading = 0.5;
+});
+
+// Touch events
+joystickHandle.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    e.preventDefault();
+});
+
+document.addEventListener('touchmove', handleJoystickMove, { passive: false });
+document.addEventListener('touchend', () => {
+    isDragging = false;
+    joystickHandle.style.left = '50px';
+    joystickHandle.style.top = '50px';
+    heading = 0.5;
+});
+
+// Create a table row and cell for the joystick
+let joystickRow = document.createElement('tr');
+let joystickCell = document.createElement('td');
+joystickCell.style.cssText = `
+    text-align: center;
+    padding-left: 0;
+`;
+
+// Add label for joystick
+let joystickLabel = document.createElement('div');
+joystickLabel.innerHTML = '<font color=white><big>Direction';
+joystickLabel.style.cssText = `
+    color: white;
+   font-family: 'Courier New', monospace;
+   font-size: 14px;
+   padding: 8px 0;
+   text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+`;
+
+joystickCell.appendChild(joystickLabel);
+joystickCell.appendChild(joystickContainer);
+joystickRow.appendChild(joystickCell);
+
+
+// Create and style jump button
+let jumpButton = document.createElement('input');
+jumpButton.type = 'button';
+jumpButton.value = 'Jump';
+jumpButton.style.cssText = `
+    width: 200px;
+    height: 40px;
+    background: linear-gradient(to bottom, #4a90e2, #357abd);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    text-align: center;
+`;
+
+// Add hover and active states
+jumpButton.onmouseover = () => {
+    jumpButton.style.background = 'linear-gradient(to bottom, #357abd, #2a5f94)';
+    jumpButton.style.transform = 'translateY(-2px)';
+    jumpButton.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.2)';
+};
+
+jumpButton.onmouseout = () => {
+    jumpButton.style.background = 'linear-gradient(to bottom, #4a90e2, #357abd)';
+    jumpButton.style.transform = 'translateY(0)';
+    jumpButton.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+};
+
+jumpButton.onmousedown = () => {
+    jumpButton.style.transform = 'translateY(1px)';
+    jumpButton.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+};
+
+jumpButton.onmouseup = () => {
+    jumpButton.style.transform = 'translateY(-2px)';
+    jumpButton.style.boxShadow = '0 6px 8px rgba(0, 0, 0, 0.2)';
+};
+
+// Create a new table row and cell for the button
+let buttonRow = document.createElement('tr');
+let buttonCell = document.createElement('td');
+buttonCell.style.cssText = `
+    text-align: center;
+    padding-left: 0;
+`;
+buttonCell.appendChild(jumpButton);
+buttonRow.appendChild(buttonCell);
+
+// Insert the button row after the last slider
+let controlTable = document.querySelector('table table');
+controlTable.insertBefore(joystickRow, controlTable.children[3]);
+controlTable.appendChild(buttonRow);
+
+
+
+   let isJumping = false;
+   let jumpHeight = 0;
+   let jumpVelocity = 0;
+   const JUMP_FORCE = 0.08;
+   const GRAVITY = 0.006;
+
+      // Add jump button handler
+   jumpButton.onclick = () => {
+      if (!isJumping && jumpHeight === 0) {  // Only allow jump when on ground
+         isJumping = true;
+         jumpVelocity = JUMP_FORCE;
+      }
+   };
+
+   
+   trackMouse(canvas1);
+   
+   let myCube   = Cube();
+   let myTube   = Tube(20);
+   let mySphere = Sphere(20);
+   
+   startGL(canvas1);
+   
+   let sSway = new Spring();
+   let sRoll = new Spring();
+   sSway.setMass(5);
+   sRoll.setMass(5);
+   
+   goSlider.value = 100;
+   bodyLengthSlider.value = 50;
+   
+   let downForce = 0;
+   let previousTime, t = 0, tx = 0, tz = 0;
+   
+   function drawFrame() {
+      requestAnimationFrame(drawFrame);
+   
+      let height     = heightSlider.value     / 100;
+      let hipwidth   = hipwidthSlider.value   / 100;
+      let radius     = radiusSlider.value     / 100;
+      let facing     = 0;
+      let stride     = strideSlider.value     / 100;
+      let leglift    = legliftSlider.value    / 100;
+      let hipsway    = hipswaySlider.value    / 100;
+      let pace       = paceSlider.value       / 100;
+      let go         = goSlider.value         / 100;
+      let bodyLength = bodyLengthSlider.value / 100;
+   
+      leglift *= go;
+      stride  *= go;
+   
+      let r  = .01 + .10 * Math.pow(radius, 1.5);
+      let hw = .25 + .16 * hipwidth;
+      let yh = .45 + height;
+      let ll = (yh/2-r*.49) * 0.8; // Reduce leg length to maintain proper height with bent knees
+      let bl = .5 + .1 * bodyLength;
+   
+      let time = Date.now() / 1000;
+   
+      VM.identity().perspective(3).turnX(canvas1.ry/30).turnY(canvas1.rx/30);
+   
+      let joint = (J, rad) => M.S().move(J).scale(rad || r).draw(mySphere,[1,1,1]).R();
+      let limb = (A,B, rad) => M.S().move(mix(A,B,.5)).aim(subtract(A,B)).scale(rad || r,rad || r,distance(A,B)/2).draw(myTube,[1,1,1]).R();
+   
+      let step = t => t % 2 < 1 ? 2 * ease(t % 1) - 1 : 1 - 2 * (t % 1);
+   
+      let face = TAU * facing - TAU/2;
+      let fc =  C(face);
+      let fs = -S(face);
+   
+      let dir = TAU * heading - TAU/2;
+      let dc = 3 * C(dir) * stride;
+      let ds = 3 * S(dir) * stride;
+   
+
+      if (previousTime) {
+         let dt = 2 * (time - previousTime) * pace;
+         t += dt;
+         tx += dt * ds;
+         tz += dt * dc;
+      }
+      previousTime = time;
+
+   
+      // Front legs
+      let lLift = .2 * Math.max(0, S(TAU*t)) * leglift;
+      let rLift = .2 * Math.max(0,-S(TAU*t)) * leglift;
+   
+      let lStep = .1 * step(2*t  );
+      let rStep = .1 * step(2*t+1);
+   
+      let swaying = Math.max(-.04, Math.min(.04, .4 * (rLift - lLift) * hipwidth));
+      let stepping = lStep + rStep;
+   
+      sSway.setForce(swaying * Math.abs(C(dir - face)) - stepping * ds);
+      sSway.update(.1);
+      let sway = sSway.getPosition();
+   
+      // Front leg positions
+      let LF = [ hw*fc + ds * lStep, r + lLift * 0.8, hw*fs + lLift + dc * lStep];
+      let RF = [-hw*fc + ds * rStep, r + rLift * 0.8,-hw*fs + rLift + dc * rStep];
+      let LH = [sway*dc + hw*fc, yh, sway*ds + hw*fs];
+      let RH = [sway*dc - hw*fc, yh, sway*ds - hw*fs];
+   
+      // Back leg positions with offset
+      let BLF = [ hw*fc + ds * rStep, r + rLift * 0.8, (hw*fs + rLift + dc * rStep) - bl];
+      let BRF = [-hw*fc + ds * lStep, r + lLift * 0.8,(-hw*fs + lLift + dc * lStep) - bl];
+      let BLH = [sway*dc + hw*fc, yh, sway*ds + hw*fs - bl];
+      let BRH = [sway*dc - hw*fc, yh, sway*ds - hw*fs - bl];
+   
+      sRoll.setForce(Math.max(LH[0] - LF[0], RF[0] - RH[0]));
+      sRoll.update(.1);
+      let roll = -.1 * sRoll.getPosition();
+   
+      let H = mix(LH, RH, .5);
+      let BH = mix(BLH, BRH, .5);
+   
+      H[1] -= downForce;
+      BH[1] -= downForce;
+      
+      let df = (a,b) => .1 * Math.max(0, distance(a,b) - 2*ll);
+      downForce = .9 * (downForce + df(LH,LF) + df(RH,RF) + df(BLH,BLF) + df(BRH,BRF));
+   
+      let DH = scale(subtract(RH, LH), .5);
+      let BDH = scale(subtract(BRH, BLH), .5);
+      
+      let rollHips = roll - sway * (hipsway - .5);
+      let rs = S(rollHips), rc = C(rollHips);
+
+
+      let thighLength = (yh/2-r*.49) * 1.0; // Thigh is full length
+      let calfLength = (yh/2-r*.49) * 0.6;  // Calf is 60% of thigh length
+
+
+
+         // Handle jumping physics
+         if (isJumping) {
+            jumpHeight += jumpVelocity;
+            jumpVelocity -= GRAVITY;
+
+                // Spread legs during peak of jump
+            let jumpPeak = jumpVelocity < 0.05 && jumpVelocity > -0.05;
+            if (jumpPeak) {
+               bl *= 12;  // Increase hip width during peak
+            }
+            
+            // Ground collision
+            if (jumpHeight <= 0) {
+                  jumpHeight = 0;
+                  jumpVelocity = 0;
+                  isJumping = false; 
+            }
+         }
+
+         // Apply jump height to leg positions after they're calculated
+
+        LF[1] += jumpHeight;
+        RF[1] += jumpHeight;
+        LH[1] += jumpHeight;
+        RH[1] += jumpHeight;
+        BLF[1] += jumpHeight;
+        BRF[1] += jumpHeight;
+        BLH[1] += jumpHeight;
+        BRH[1] += jumpHeight;
+
+
+
+      // Modify the getKnee function to maintain bent knees
+      let getKnee = (H,F) => {
+         let legVector = subtract(F,H);
+         let bendAngle = 0.3; // Controls how bent the knees are (in radians)
+
+         if (isJumping) {
+            // Spread legs outward during jump
+            F[2] *= 1.3;  // Spread legs horizontally
+            legVector = subtract(F,H);
+            F[1] = H[1] - 0.6; 
+            bendAngle = 0.4;  // Reduce knee bend during jump
+         }
+
+
+         // Calculate the midpoint with an offset for bent knees
+         let midPoint = add(H, scale(legVector, 0.6));
+         midPoint[1] -= Math.sin(bendAngle) * distance(H,F) * 0.1;
+         
+         // Use inverse kinematics with the bent position
+         return add(H, ik(thighLength, calfLength, subtract(midPoint,H), cross([0,1,0], DH)));
+      }
+
+   
+      let LK = getKnee(LH, LF);
+      let RK = getKnee(RH, RF);
+      let BLK = getKnee(BLH, BLF);
+      let BRK = getKnee(BRH, BRF);
+   
+      drawScene(() => {
+         M.S().move(0,-.4,-.4).turnY(Math.PI/4 + Math.PI/12).turnZ(Math.PI/12);
+
+
+            // Draw all joints
+            joint(LF, r * 1.5); joint(RF, r * 1.5);
+            joint(LH); joint(RH);
+            joint(LK, r * 1.4); joint(RK, r * 1.4); // Larger knee joints
+            joint(BLF, r * 1.5); joint(BRF, r * 1.5);
+            joint(BLH); joint(BRH);
+            joint(BLK, r * 1.4); joint(BRK, r * 1.4);
+   
+            // Draw all limbs
+            limb(LF,LK); limb(RF,RK);
+            limb(LK,LH, r * 1.5); limb(RK,RH, r * 1.5);
+            limb(BLF,BLK); limb(BRF,BRK);
+            limb(BLK,BLH, r * 1.5); limb(BRK,BRH, r * 1.5);
+   
+            // Draw body connections
+            limb(LH,RH);   // Front hip
+            limb(BLH,BRH); // Back hip
+            // limb(LH,BLH);  // Left side
+            // limb(RH,BRH);  // Right side
+
+            // Add hip joint cylinders
+            let cylRadius = r * 1.8;  // Make cylinders slightly larger than limbs
+            let cylHeight = r * 2.25;  // Set cylinder height
+
+            // Front left hip cylinder
+            M.S()
+            .move(LH)
+            .turnY(Math.PI/2)  // Rotate to align with hip
+            .turnZ(-Math.PI/2)
+            .scale(cylRadius, cylHeight, cylRadius)
+            .draw(Cylinder(20), [0.6, 0.6, 0.6], 0.8)
+            .R();
+
+            // Front right hip cylinder
+            M.S()
+            .move(RH)
+            .turnY(Math.PI/2)  // Rotate to align with hip
+            .turnZ(-Math.PI/2)
+            .scale(cylRadius, cylHeight, cylRadius)
+            .draw(Cylinder(20), [0.6, 0.6, 0.6], 0.8)
+            .R();
+
+            // Back left hip cylinder
+            M.S()
+            .move(BLH)
+            .turnY(Math.PI/2)  // Rotate to align with hip
+            .turnZ(-Math.PI/2)
+            .scale(cylRadius, cylHeight, cylRadius)
+            .draw(Cylinder(20), [0.6, 0.6, 0.6], 0.8)
+            .R();
+
+            // Back right hip cylinder
+            M.S()
+            .move(BRH)
+            .turnY(Math.PI/2)  // Rotate to align with hip
+            .turnZ(-Math.PI/2)
+            .scale(cylRadius, cylHeight, cylRadius)
+            .draw(Cylinder(20), [0.6, 0.6, 0.6], 0.8)
+            .R();
+
+
+
+
+// Add battery pack
+M.S()
+    .move(mix(LH, BRH, .6))
+    .turnX( TAU)
+    .scale(hipwidth * 0.2, 0.5 * 0.1, 0.15)
+    .draw(myCube, [0.1, 0.1, 0.1], 0.9)
+    .R();
+
+// Add CPU pack
+M.S()
+    .move(mix(LH, BRH, .3))
+    .turnX(TAU)
+    .scale(hipwidth * 0.1, 0.5 * 0.1, 0.1)
+    .draw(Cylinder(20), [0.1, 0.1, 0.1], 0.9)
+    .R();
+
+
+
+// Add cooling vents (multiple parallel lines)
+for (let i = -2; i <= 2; i++) {
+    M.S()
+        .move(mix(LH, BRH, .5))
+        .move(hipwidth * 0.2 * i, 0, 0)
+        .move(0, -0.1, 0)
+        .scale(hipwidth * 0.05, 0.5 * 0.01, bodyLength * 0.4)
+        .turnX(0.27 * TAU)
+        .draw(myCube, [0.3, 0.3, 0.3], 1.0)
+        .R();
+}
+
+// Add main camera module
+M.S()
+    .move(mix(LH, RH, .5))
+    .move(0, 0, bodyLength * 0.84 - 0.28)
+    .scale(r * 1.2, r * 1.2, r * 1.2)
+    .draw(Cube(20), [0.1, 0.1, 0.1], 1.0)
+    .R();
+
+M.S()
+    .move(mix(LH, RH, .333))
+    .move(0, 0, bodyLength * 0.84 - 0.28)
+    .scale(r * 0.2, r * 1.2, r * 1.2)
+    .turnX(Math.PI/8)
+    .draw(Cube(20), [0.2, 0.8, 0.2], 1.0)
+    .R();
+
+M.S()
+    .move(mix(LH, RH, .666))
+    .move(0, 0, bodyLength * 0.84 - 0.28)
+    .scale(r * 0.2, r * 1.2, r * 1.2)
+    .turnX(Math.PI/8)
+    .draw(Cube(20), [0.2, 0.8, 0.2], 1.0)
+    .R();
+
+
+
+// Wire
+M.S()
+   .move(mix(LH, BRH, 0.7))
+   .move(0, 0, 0.1)
+   .turnX(TAU)
+   .scale(r * 0.4, r * 0.4,  0.3)
+   .draw(Cylinder(20), [0.3, 0.3, 0.3], 0.8)
+   .R();
+
+// Wire
+M.S()
+   .move(mix(LH, BRH, 0.3))
+   .move(0, 0, 0.1)
+   .turnX(TAU)
+   .scale(r * 0.4, r * 0.4, 0.1)
+   .draw(Cylinder(20), [0.3, 0.3, 0.3], 0.8)
+   .R();
+
+
+// Draw main body
+M.S()
+    .move(mix(LH, BRH, .5))
+    .scale(hipwidth * .4, 0.5 * 0.2, bodyLength * 0.85)
+    .turnX(0.27 * TAU)
+    .draw(myCube, [0.6, 0.6, 0.6], 0.8)
+    .R();
+
+               
+         let T = d => Math.sign(d) - (d % 4) / 2;
+         M.S().scale(.75, 1, .75);
+            
+            // Draw main ground plane with gradient color
+            M.S()
+            .scale(1.2, .001, 1.2)
+            .draw(myCube, [0.19, 0.38, 0.80], 0.9) 
+            .R();
+            
+            // Add decorative border
+            M.S()
+            .scale(1.22, .0005, 1.22)
+            .draw(myCube, [0.3, 0.5, 0.7], 0.5)
+            .R();
+            
+            // Create dynamic grid pattern
+            for (let i = 0; i <= 4; i += 1) {
+               // Horizontal lines with fading opacity
+               M.S()
+                  .move(T(tx+i), 0, 0)
+                  .scale(.008, .003, 1.1)
+                  .draw(myCube, [1, 1, 1], 0.3 - i*0.05)
+                  .R();
+               
+               // Vertical lines with fading opacity
+               M.S()
+                  .move(0, 0, T(tz+i))
+                  .scale(1.1, .003, .008)
+                  .draw(myCube, [1, 1, 1], 0.3 - i*0.05)
+                  .R();
+            }
+         M.R();
+
+         M.R();
+      });
+   }
+   requestAnimationFrame(drawFrame);
+   
+   </script>
+   </body>
+   
